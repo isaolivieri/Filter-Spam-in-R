@@ -1,0 +1,303 @@
+---
+title: "Proyecto_avance"
+author: "Brahm_Olivieri_Vidal"
+format: pdf
+editor: visual
+---
+
+# Avance proyecto
+
+## Librerias
+
+```{r,message=FALSE}
+library(readr)
+library(DataExplorer)
+library(factoextra)
+library(tidyverse)
+library(caret)
+library(ggplot2)
+library(e1071)
+library(caTools)
+library(plotly)
+library(pROC)
+library(MASS)
+library(dplyr)
+library(PRROC)
+library(class)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(knitr)       
+library(ROCR)        
+library(kernlab)     
+library(randomForest) 
+library(ipred) 
+
+
+
+```
+
+```{r}
+names<- read.table("spambase.names", sep=":", strip.white=TRUE, comment.char="")
+df <- read.table("spambase.data", header = FALSE, sep = ",", col.names = names$V1)
+```
+
+### Preparación de data
+
+```{r}
+for (i in c("Spam"))
+  {
+  df[[i]]<-as.factor(df[[i]])
+  }
+```
+
+## Análisis exploratorio
+
+```{r}
+plot_intro(df)
+```
+
+No se realiza el analisis de boxplot debido a que en el contexto de la data no existen datos anomalos
+
+```{r,message=FALSE}
+plot_bar(df)
+plot_histogram(df)
+attach(df)
+```
+
+### Correlación de las variables numericas con nuestra variable nominal (spam)
+
+```{r}
+variables_numericas <- df[,sapply(df,is.numeric)]
+matriz_correlacion<-cor(variables_numericas, as.numeric(df$Spam))
+matriz_correlacion
+```
+
+## Planteamiento de modelo
+
+### Regresión logística
+
+#### Toda la data
+
+```{r,message=FALSE}
+attach(df)
+ glm_tdf<- glm( Spam~ .,data = df, family =binomial)
+summary(glm_tdf)
+```
+
+### Data de entrenamiento y de testeo
+
+```{r}
+set.seed(134)
+partition <- createDataPartition(y = df$Spam, p = 0.7, list = FALSE)
+train <- df[partition,]
+test <- df[-partition,]
+```
+
+```{r}
+table(train$Spam)
+table(test$Spam)
+table(df$Spam)
+```
+
+### Modelo de regresión logística
+
+```{r,message=FALSE}
+attach(df)
+glm_train <- glm(Spam ~ .,data = train, family =binomial)
+summary(glm_train)
+```
+
+```{r}
+set.seed(134)
+glm.probs=predict(glm_train, test, type="response")
+```
+
+```{r}
+glm.pred=rep(0,length(glm.probs))
+glm.pred[glm.probs >.2]=1
+
+```
+
+nos importa el 1- specificity
+
+1= spam
+
+buscamos evitar lo maximo posiblelos que no son spam y fueron clasificados como spam
+
+#### Modelo LDA
+
+```{r}
+lda_train <- lda(Spam ~ ., data = train)
+```
+
+```{r}
+set.seed(134)
+lda.pred=predict(lda_train, test)
+confusionMatrix(table(lda.pred$class,test$Spam))
+```
+
+#### Modelo QDA
+
+```{r}
+qda_train <- qda(Spam ~ ., data = train)
+```
+
+```{r}
+set.seed(163)
+
+qda.pred=predict(qda_train, test)
+confusionMatrix(table(qda.pred$class,test$Spam))
+```
+
+#### Modelo KNN.
+
+```{r}
+train_knn = train %>% dplyr::select(-c("Spam"))
+test_knn = test %>% dplyr::select(-c("Spam"))
+```
+
+```{r}
+overall.accuracy = c()
+for (i in 1:50){
+  set.seed(163)
+  knn.pred=knn(train_knn,test_knn,train$Spam,k=i)
+  values = confusionMatrix(table(knn.pred,test$Spam),positive = "1")
+  overall = values$overall
+  overall.accuracy = append(overall.accuracy , overall["Accuracy"])
+}
+
+acc = data.frame(k=1:50, accuracy = overall.accuracy)
+
+ggplot(acc) + aes(x = k, y = accuracy) +geom_line(size = 0.5, colour = "#112446") +  theme_minimal() + geom_vline(xintercept = 6, color = "red")
+```
+
+```{r}
+knn.pred=knn(train_knn,test_knn,train$Spam,k=6)
+
+```
+
+#### Modelo de Árbol de decisiones
+
+#### Arbol 1
+
+```{r}
+mod_dt<-rpart(Spam~., train, 
+          method = 'class',
+          parms = list(  split = "information"),
+          control = rpart.control(cp = 0.00001))
+```
+
+```{r}
+printcp(mod_dt)
+```
+
+```{r}
+plotcp(mod_dt)
+```
+
+#### Árbol 2
+
+```{r}
+mod_dt2<-rpart(Spam~., train, 
+          method = 'class',
+          parms = list(  split = "information"),
+          control = rpart.control(cp = 0.00039370,
+                                  maxdepth = 7))
+
+printcp(mod_dt2)
+```
+
+```{r}
+plotcp(mod_dt2)
+```
+
+```{r}
+rpart.plot(mod_dt2,type=2,extra = 7, under = TRUE,under.cex = 0.7,fallen.leaves=F,gap = 0,cex=0.2, yesno = 2,box.palette = "GnYlRd",branch.lty = 3)
+```
+
+```{r}
+rpart.rules(mod_dt2,style = 'tall',cover = T)
+```
+
+```{r}
+set.seed(163)
+dt_2_class <- predict(mod_dt2, test, type="class")
+
+MC_dt_2 <- confusionMatrix(dt_2_class, test$Spam , positive = '1')
+MC_dt_2
+```
+
+#### Árbol 3
+
+```{r}
+dt_3 = rpart(formula=Spam~ . , data=train)
+tree_plot = rpart.plot(dt_3)
+```
+
+```{r}
+set.seed(163)
+dt_3_class <- predict(dt_3, test, type="class")
+MC_dt_3=confusionMatrix(dt_3_class, test$Spam , positive = '1')
+MC_dt_3
+```
+
+### Modelo SVM
+
+```{r}
+svm_1=svm(Spam~., data=train, kernel="radial", gamma=1,cost =1)
+svm_2=svm(Spam~., data=train, kernel="linear", gamma=1,cost =1)
+svm_3=svm(Spam~., data=train, kernel="polynomial",degree = 3)
+```
+
+### Matrices de confusión
+
+```{r}
+confusionMatrix(table(glm.pred, test$Spam),positive="1")
+confusionMatrix(table(lda.pred$class,test$Spam),positive="1")
+confusionMatrix(table(qda.pred$class,test$Spam),positive="1")
+confusionMatrix(table(knn.pred,test$Spam),positive = "1")
+values
+confusionMatrix(table(pred=predict(svm_1, newdata=test),test$Spam),positive = "1")
+confusionMatrix(table(pred=predict(svm_2, newdata=test),test$Spam), positive = "1")
+```
+
+```{r}
+
+roc_obj_lda <- roc(test$Spam,lda.pred$posterior[,2])
+roc_obj_qda <- roc(test$Spam,qda.pred$posterior[,2])
+
+
+plot(roc_obj_qda)
+auc(roc_obj_qda)
+
+plot(roc_obj_lda)
+auc(roc_obj_lda)
+```
+
+### K-mean
+
+```{r}
+library(fpc)
+```
+
+```{r}
+set.seed(163)
+kmeans_result <- kmeans(subset(df, select = -c(Spam)), centers = 2,nstart = 25)
+```
+
+```{r}
+#Se vuelve a cargar la data con los datos originales de Spam
+df_km<-df
+df_km$grupo <- kmeans_result$cluster
+df_km$grupo[df_km$grupo == 1] <- 0
+df_km$grupo[df_km$grupo == 2] <- 1
+for (i in c("grupo"))
+  {
+  df_km[[i]]<-as.factor(df_km[[i]])
+}
+```
+
+```{r}
+confusionMatrix(table(df_km$grupo,df_km$Spam),positive = "1")
+```
