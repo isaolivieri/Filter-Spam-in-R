@@ -260,6 +260,7 @@ confusionMatrix(table(knn.pred,test$Spam),positive = "1")
 values
 confusionMatrix(table(pred=predict(svm_1, newdata=test),test$Spam),positive = "1")
 confusionMatrix(table(pred=predict(svm_2, newdata=test),test$Spam), positive = "1")
+confusionMatrix(table(pred=predict(svm_3, newdata=test),test$Spam), positive = "1")
 ```
 
 ```{r}
