@@ -1,0 +1,815 @@
+---
+title: "Proyecto final"
+author: "Brahm-Olivieri-Vidal"
+format: pdf
+editor: visual
+---
+
+# Lectura de datos
+
+```{r}
+df<-read.csv("garments_worker_productivity.csv",sep = ",")
+```
+
+# Librerias
+
+```{r,message=FALSE}
+library(readr)
+library(DataExplorer)
+library(factoextra)
+library(tidyverse)
+library(caret)
+library(ggplot2)
+library(e1071)
+library(caTools)
+library(plotly)
+library(pROC)
+library(MASS)
+library(dplyr)
+library(PRROC)
+library(class)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(knitr)       
+library(ROCR)        
+library(kernlab)     
+library(randomForest) 
+library(ipred) 
+library(rsample)
+library(parsnip)
+library(recipes)
+library(workflows)
+library(yardstick)
+library(caret)
+library(tensorflow)
+library(keras)
+library(reticulate)
+library(nnet)
+library(neuralnet)
+library(stats)
+
+
+```
+
+# Preparar data
+
+```{r}
+set.seed(163)
+df <- df %>% separate(date, into = c("mes", "dia", "anio"), sep = "/")
+df <- df %>% mutate(mes = as.numeric(mes), dia = as.numeric(dia), anio = as.numeric(anio))
+
+df$wip[is.na(df$wip)] <- 0
+
+df$department[df$department == "sweing"]<-1
+df$department[df$department == "finishing "]<-0
+df$department[df$department == "finishing"]<-0
+
+df$department<-as.numeric(df$department)
+
+variables_a_codificar <- c("quarter","day")
+
+data_encoded <- model.matrix(~.-1, data = df[, variables_a_codificar])
+df_combined <- cbind(df, data_encoded)
+df_combined <- subset(df_combined,select = -c(quarter,day))
+```
+
+# Exploración de datos
+
+```{r}
+attach(df_combined)
+plot_intro(df_combined)
+```
+
+```{r}
+attach(df_combined)
+plot_histogram(df_combined)
+```
+
+```{r, message=FALSE}
+variables_numericas <- df_combined[,sapply(df_combined,is.numeric)]
+matriz_correlacion<-cor(variables_numericas, as.numeric(df_combined$actual_productivity))
+matriz_correlacion
+```
+
+```{r}
+df_combined <- subset(df_combined,select = -c(anio))
+```
+
+# Estandarización
+
+```{r}
+columnas_numericas <- sapply(df_combined, is.numeric)
+df_combined[columnas_numericas] <- scale(df_combined[columnas_numericas])
+df_combined[columnas_numericas] <- (df_combined[columnas_numericas] - min(df_combined[columnas_numericas])) / (max(df_combined[columnas_numericas]) - min(df_combined[columnas_numericas]))
+```
+
+# Data Split
+
+```{r,message=FALSE}
+attach(df_combined)
+split <- initial_split(df_combined, prop = 0.8)
+train_data <- training(split)
+test_data <- testing(split)
+```
+
+# Funciones de activación
+
+```{r}
+softplus <- function(x) { log(1 + exp(x)) }
+```
+
+# Selección de cantidad de capas
+
+## 1 capa oculta
+
+### 1 neurona
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(1),
+  learningrate = 0.01,
+  rep = 5 )
+plot(concrete_model_2, rep="best")
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+### Correlación y error
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 2 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(2),
+  learningrate = 0.01,
+  rep = 5 )
+plot(concrete_model_2, rep="best")
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 4 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(4),
+  learningrate = 0.01,
+  rep = 5 )
+plot(concrete_model_2, rep="best")
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 8 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(8),
+  learningrate = 0.01,
+  rep = 5 )
+plot(concrete_model_2, rep="best")
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 16 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(16),
+  learningrate = 0.01,
+  rep = 5 )
+plot(concrete_model_2, rep="best")
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+## 2 capas ocultas
+
+2 y 1 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(2,1),
+  learningrate = 0.01,
+  rep = 5 )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+
+```
+
+```{r}
+plot(concrete_model_2, rep="best")
+```
+
+### Correlación y error
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 4 y 2 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(4,2),
+  learningrate = 0.01,
+  rep = 5 )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 8 y 4 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(8,4),
+  learningrate = 0.01,
+  rep = 5 )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 16 y 8 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(16,8),
+  learningrate = 0.01,
+  rep = 5 )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+## 3 capas ocultas
+
+### 4,2,1 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(4,2,1),
+  learningrate = 0.01,
+  rep = 5 )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 8,4,2 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(8,4,2),
+  learningrate = 0.01,
+  rep = 5 )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+### 16,8,4 Neuronas
+
+```{r}
+start_time <- Sys.time()
+
+concrete_model_2<-neuralnet(actual_productivity~ ., data=train_data,
+  hidden = c(16,8,4),
+  learningrate = 0.01,
+  rep = 5 )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+
+print(execution_time)
+```
+
+```{r}
+model_results <- compute(concrete_model_2, test_data[1:23])
+predicted_2 <- model_results$net.result
+cor(predicted_2, test_data$actual_productivity)
+
+actual_values<-test_data$actual_productivity
+#MSE:
+MSE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  sum_squared_errors_2 <- sum((predicted_2 - actual_values)^2)
+  mse_value_2 <- sum_squared_errors_2 / n_2
+  return(mse_value_2)
+}
+
+#MAE:
+MAE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_errors_2 <- abs(predicted_2 - actual_values)
+  mae_value_2 <- sum(absolute_errors_2) / n_2
+  return(mae_value_2)
+}
+
+#MAPE:
+MAPE_2 <- function(predicted_2, actual_values) {
+  n_2 <- length(predicted_2)
+  absolute_percentage_errors_2 <- abs((predicted_2 - actual_values) / actual_values) * 100
+  mape_value_2 <- sum(absolute_percentage_errors_2) / n_2
+  return(mape_value_2)
+}
+print("MSE_2")
+MSE_2(predicted_2, actual_values)
+
+print("MAE_2")
+MAE_2(predicted_2, actual_values)
+
+print("MAPE_2")
+MAPE_2(predicted_2, actual_values)
+```
+
+## 
+
+```{}
+```
