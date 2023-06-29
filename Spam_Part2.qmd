@@ -1,0 +1,721 @@
+---
+title: "Productividad"
+format: pdf
+editor: visual
+---
+
+## Carga y Preparación de los Datos
+
+```{r,message=FALSE,error=FALSE}
+library(readr)
+library(DataExplorer)
+library(factoextra)
+library(tidyverse)
+library(caret)
+library(ggplot2)
+library(e1071)
+library(caTools)
+library(plotly)
+library(pROC)
+library(MASS)
+library(dplyr)
+library(PRROC)
+library(class)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(knitr)       
+library(ROCR)        
+library(kernlab)     
+library(randomForest) 
+library(ipred) 
+library(rsample)
+library(parsnip)
+library(recipes)
+library(workflows)
+library(yardstick)
+library(caret)
+library(tensorflow)
+library(keras)
+library(reticulate)
+library(nnet)
+library(neuralnet)
+library(stats)
+```
+
+```{r,error=FALSE}
+names<- read.table("C:/Users/PC/Desktop/uwu/2023/2023-S1/Análisis de Negocios/Proyecto/Primera parte/spambase.names", sep=":", strip.white=TRUE, comment.char="")
+df <- read.table("C:/Users/PC/Desktop/uwu/2023/2023-S1/Análisis de Negocios/Proyecto/Primera parte/spambase.data", header = FALSE, sep = ",", col.names = names$V1)
+```
+
+```{r,error=FALSE}
+db <- df
+```
+
+```{r,error=FALSE}
+
+db$Spam <- as.numeric(db$Spam);
+db$capital_run_length_longest <- as.numeric(db$capital_run_length_longest);
+db$capital_run_length_total <- as.numeric(db$capital_run_length_total);
+```
+
+## Análisis Exploratorio de los Datos
+
+```{r,error=FALSE}
+plot_intro(db)
+```
+
+```{r,error=FALSE}
+plot_histogram(db)
+```
+
+```{r,error=FALSE}
+variables_numericas <- db[,sapply(db,is.numeric)]
+matriz_correlacion<-cor(variables_numericas, as.numeric(db$Spam))
+matriz_correlacion
+```
+
+## Redes Neuronales
+
+### Normalización de los Datos
+
+```{r,error=FALSE}
+columnas_numericas <- sapply(db, is.numeric)
+db[columnas_numericas] <- scale(db[columnas_numericas])
+db[columnas_numericas] <- (db[columnas_numericas] - min(db[columnas_numericas])) / (max(db[columnas_numericas]) - min(db[columnas_numericas]))
+
+
+
+#df_combined[variables_a_normalizar] <- predict(datos_normalizados, newdata = df_combined[variables_a_normalizar])
+```
+
+### Separación de la Data
+
+```{r,message=FALSE,error=FALSE}
+attach(db)
+set.seed(163)
+split <- initial_split(db, prop = 0.8)
+train_data <- training(split)
+test_data <- testing(split)
+
+```
+
+### Modelo con 1 Capa
+
+```{r,error=FALSE}
+#MSE:
+MSE <- function(predictions, actual_values) {
+  n <- length(predictions)
+  sum_squared_errors <- sum((predictions - actual_values)^2)
+  mse_value <- sum_squared_errors / n
+  return(mse_value)
+}
+
+#MAE:
+MAE <- function(predictions, actual_values) {
+  n <- length(predictions)
+  absolute_errors <- abs(predictions - actual_values)
+  mae_value <- sum(absolute_errors) / n
+  return(mae_value)
+}
+
+#MAPE:
+MAPE <- function(predictions, actual_values) {
+  n <- length(predictions)
+  absolute_percentage_errors <- abs((predictions - actual_values) / actual_values) * 100
+  mape_value <- sum(absolute_percentage_errors) / n
+  return(mape_value)
+}
+```
+
+```{r,error=FALSE}
+softplus <- function(x) { log(1 + exp(x)) }
+sigmoid <- function(x){(1/(1+exp(-x)))}
+relu <- function(x) {(max(0, x))}
+```
+
+##### 1 Neurona
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(1),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+##### 2 Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(2),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+##### 4 Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(4),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### 8 Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(8),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### 16 Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(16),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+
+### Modelo con 2 Capas
+
+##### (1,1) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(1,1),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### (2,1) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(2,1),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### (4,2) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(4,2),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+##### (8,4) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(8,4),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### (16,8) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(16,8),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+### Modelo con 3 Capas
+
+##### (1,1,1) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(1,1,1),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+##### (2,1,1) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(2,1,1),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### (4,2,1) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(4,2,1),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### (8,4,2) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(1,1,1),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
+
+##### (16,8,4) Neuronas
+
+```{r,error=FALSE}
+start_time <- Sys.time()
+
+concrete_model<-neuralnet(Spam~ ., data=train_data,
+  hidden = c(16,8,4),
+  act.fct = softplus,
+  learningrate = 0.01,
+  rep = 8
+  )
+
+end_time <- Sys.time()
+
+execution_time <- end_time - start_time
+```
+
+```{r}
+model_results <- compute(concrete_model, test_data[1:57])
+predicted_strength <- model_results$net.result
+```
+
+```{r}
+print("Costo Computacional")
+print(execution_time)
+
+print("Correlación")
+cor(predicted_strength, test_data$Spam)
+
+print("MSE")
+MSE(predicted_strength, test_data$Spam)
+
+print("MAE")
+MAE(predicted_strength, test_data$Spam)
+
+print("MAPE")
+MAPE(predicted_strength, test_data$Spam)
+```
